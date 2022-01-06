@@ -1,0 +1,146 @@
+<!DOCTYPE HTML><html>
+<head>
+  <title>ESP Web Server</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+  html {
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+  }
+  h1 {
+    font-size: 1.8rem;
+    color: white;
+  }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #143642;
+  }
+  .topnav {
+    overflow: hidden;
+    background-color: #143642;
+  }
+  body {
+    margin: 0;
+  }
+  .content {
+    padding: 30px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .card {
+    background-color: #F8F7F9;;
+    box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
+    padding-top:10px;
+    padding-bottom:20px;
+  }
+  .button {
+    padding: 15px 50px;
+    font-size: 24px;
+    text-align: center;
+    outline: none;
+    color: #fff;
+    background-color: #0f8b8d;
+    border: none;
+    border-radius: 5px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+   }
+   /*.button:hover {background-color: #0f8b8d}*/
+   .button:active {
+     background-color: #0f8b8d;
+     box-shadow: 2 2px #CDCDCD;
+     transform: translateY(2px);
+   }
+   #hint {
+     font-size: 1.5rem;
+     color:#8c8c8c;
+     font-weight: bold;
+   }
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <h1>Penghitung Waktu</h1>
+  </div>
+  <div class="content">
+    <div class="card" id="card">
+      <span id="hint"><p>Lewati gerbang mulai untuk memulai pengukuran</p></span>
+      <span id="gate0" hidden><h2>00,00 s</h2></span>
+      <div id="timing-div"></div>
+      <p><button id="button" class="button" hidden>Ulangi</button></p>
+    </div>
+  </div>
+<script>
+  var gateway = `ws://${window.location.hostname}/ws`;
+  var websocket;
+  window.addEventListener('load', onLoad);
+  function initWebSocket() {
+    console.log('Trying to open a WebSocket connection...');
+    websocket = new WebSocket(gateway);
+    websocket.onopen    = onOpen;
+    websocket.onclose   = onClose;
+    websocket.onmessage = onMessage; // <-- add this line
+  }
+  function onOpen(event) {
+    console.log('Connection opened');
+  }
+  function onClose(event) {
+    console.log('Connection closed');
+    setTimeout(initWebSocket, 2000);
+  }
+  function onMessage(event) {
+    var state;
+    console.log(`message : ${event.data}`);
+    if (event.data == "init") {
+        document.getElementById('hint').style.display = 'block';
+        document.getElementById('gate0').style.display = 'none';
+        document.getElementById('button').style.display = 'none';
+        document.getElementById("timing-div").innerHTML = "";
+    } else {
+      const timingArr = event.data.split(",");
+      if (timingArr.length > 1) {
+        document.getElementById('hint').style.display = 'none';
+        document.getElementById('gate0').style.display = 'block';
+        document.getElementById('button').style.display = 'inline';
+        document.getElementById("timing-div").innerHTML = "";
+        timingArr.sort();
+        timingArr.map((timing) => {
+          if (Number(timing)) {
+            const sec = Math.floor(timing / 100);
+            const csec = timing % 100;
+            const timing_str =  (sec < 10 ? `0${sec}` : `${sec}`) + "," + (csec < 10 ? `0${csec}` : `${csec}`);  
+            const timeDom = document.createElement("h2");
+            timeDom.setAttribute("class", "timing");
+            timeDom.innerHTML = `${timing.substring(1,3)},${timing.substring(3,5)} s`;
+            document.getElementById("timing-div").appendChild(timeDom);
+          }
+        })
+      }
+    }
+
+    if (event.data == "1"){
+      state = "ON";
+    }
+    else{
+      state = "OFF";
+    }
+  }
+  function onLoad(event) {
+    initWebSocket();
+    initButton();
+  }
+  function initButton() {
+    document.getElementById('button').addEventListener('click', toggle);
+  }
+  function toggle(){
+    websocket.send('restart');
+  }
+</script>
+</body>
+</html>
